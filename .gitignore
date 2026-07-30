@@ -18,3 +18,6 @@ node_modules
 # runs against the public mock.shop API — and committing it is what makes
 # `git clone && npm install && npm run dev` work with no setup.
 # See docs/adr/0004-commit-the-env-file.md
+
+# TypeScript incremental build cache
+/tsconfig.tsbuildinfo
