@@ -62,7 +62,7 @@ comparison can be audited rather than taken on trust.
 |---|---|---|---|
 | CDN preconnect | present | removed | A TLS round trip before the LCP image can start |
 | Hero image | `eager` + `fetchpriority=high` | `lazy` + `auto` | Lazy-loading the LCP element defeats the preload scanner |
-| `sizes` hint | viewport-aware | `100vw` | Mobile downloads a desktop-width image |
+| `sizes` hint | viewport-aware | hardcoded `1600px` | Mobile downloads a desktop-width image |
 | Layout reservation | aspect ratio set | absent | The usual cause of a bad CLS score |
 | Third-party app script | absent | synchronous in `<head>` | Reviews / popup / upsell bundles — the biggest real-world cost |
 | Storefront API cache | `CacheLong` / `CacheShort` | `CacheNone` | Warm vs cold TTFB |
@@ -75,9 +75,15 @@ npm run perf           # both modes, 3 Lighthouse runs per URL, median
 ```
 
 Results are written to `docs/perf/latest.md` and `docs/perf/latest.json`.
-Mobile emulation with default throttling (4× CPU, Slow 4G) — desktop numbers
-flatter every storefront and hide exactly the main-thread cost this comparison
-is about.
+Mobile emulation at 4× CPU and Slow 4G — desktop numbers flatter every
+storefront and hide exactly the main-thread cost this comparison is about.
+
+The throttling is *applied*, not Lighthouse's default simulation. Simulation
+replays the trace against a modelled network graph and put first paint after
+work that had really run before it, reporting `0 ms` of Total Blocking Time in
+both modes while the trace held a 722 ms task from the third-party script.
+Applied throttling is slower to run and noisier; it also measures what this
+comparison claims to be about.
 
 To see a single mode in a browser, set `PERF_MODE` in `.env` and run
 `npm run preview`. The rendered mode is visible as `<html data-perf-mode="…">`.
@@ -149,6 +155,13 @@ looked for them.
 - **The third-party script is a stand-in.** It reproduces the two costs that
   matter — network latency before the parser continues, and main-thread time on
   execution — but not any specific vendor's behaviour.
+- **One of the six levers does not show up in the numbers.** `baseline` emits a
+  hero `<img>` carrying no width, height, or aspect ratio, and CLS still comes
+  back 0.000 in both modes: mock.shop's images are small and loopback is fast,
+  so the hero decodes before first paint and nothing is laid out twice. Against
+  a real image origin it would shift. The lever stays because the budget has to
+  hold there, but the report shows a `—` rather than a win, which is the honest
+  reading.
 - **Lighthouse is noisy.** The harness takes the median of several runs, which
   is enough to show the shape of a difference and not enough to call a 3%
   change a regression. Field data (CrUX / RUM) is what a production storefront
@@ -164,8 +177,19 @@ looked for them.
 - `npm run typecheck` — route typegen, then `tsc --noEmit`
 - `npm run codegen` — regenerate Storefront API types after editing a query
 - React is pinned to 18.x to match what Hydrogen 2026.4 is tested against.
-- **Windows:** if `npm run dev` or `npm run preview` returns `500` on static
-  assets, with `ConnectEx(): Access is denied` in the server log, a local
-  firewall or endpoint-security policy is blocking the workerd runtime's
-  loopback sockets. This is environmental, not a defect in the app — allow
-  `workerd.exe` through, or run under WSL2.
+- **If every `/assets/*` request returns 500 while pages still render:** the
+  host cannot reach IPv6 loopback. mini-oxygen does not serve static files from
+  the worker — it runs a second Node server and has the worker fetch it over
+  `http://localhost:<port>`. `localhost` resolves to `::1` first, and when that
+  connect is refused the worker throws instead of retrying over IPv4, so HTML
+  keeps working and every asset fails. Confirm it in one line:
+
+  ```bash
+  node -e "require('net').connect({host:'::1',port:45999}).on('error',e=>console.log(e.code))"
+  ```
+
+  `ECONNREFUSED` is healthy. `EACCES` means IPv6 loopback is blocked
+  machine-wide, usually by a firewall or endpoint-security policy. `npm run
+  perf` detects this and serves `dist/client` over IPv4 itself, noting it in the
+  generated report; `npm run dev` and `npm run preview` have no such fallback,
+  so browse the storefront under WSL2 on an affected machine.

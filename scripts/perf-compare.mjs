@@ -17,8 +17,9 @@
  */
 
 import {spawn} from 'node:child_process';
-import {mkdir, writeFile, rm} from 'node:fs/promises';
-import {existsSync} from 'node:fs';
+import {mkdir, writeFile, rm, readdir, stat} from 'node:fs/promises';
+import {createReadStream, existsSync} from 'node:fs';
+import {createServer, request as httpRequest} from 'node:http';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import lighthouse from 'lighthouse';
@@ -27,6 +28,15 @@ import * as chromeLauncher from 'chrome-launcher';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const TMP_DIR = path.join(ROOT, '.perf-tmp');
 const OUT_DIR = path.join(ROOT, 'docs', 'perf');
+const CLIENT_DIR = path.join(ROOT, 'dist', 'client');
+
+/**
+ * Everything here addresses the preview server over IPv4 rather than
+ * `localhost`. On a host where IPv6 loopback is unavailable, `localhost`
+ * resolves to `::1` first and every request pays a failed connect before
+ * falling back — see `startStaticFront`.
+ */
+const LOOPBACK = '127.0.0.1';
 
 const RUNS_PER_URL = Number(process.env.PERF_RUNS ?? 3);
 const MODES = [
@@ -109,7 +119,7 @@ async function waitForServer(port, timeoutMs = 90_000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     try {
-      const res = await fetch(`http://localhost:${port}/`, {
+      const res = await fetch(`http://${LOOPBACK}:${port}/`, {
         signal: AbortSignal.timeout(5_000),
       });
       if (res.ok) return true;
@@ -148,6 +158,111 @@ async function startPreview(mode, port) {
   return child;
 }
 
+const MIME_TYPES = {
+  '.css': 'text/css; charset=utf-8',
+  '.ico': 'image/x-icon',
+  '.jpeg': 'image/jpeg',
+  '.jpg': 'image/jpeg',
+  '.js': 'text/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.map': 'application/json; charset=utf-8',
+  '.png': 'image/png',
+  '.svg': 'image/svg+xml',
+  '.txt': 'text/plain; charset=utf-8',
+  '.webp': 'image/webp',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+};
+
+/**
+ * Confirms the preview server can serve its own build output.
+ *
+ * mini-oxygen does not serve static files from the worker: it runs a second
+ * Node server and has the worker fetch it over `http://localhost:<port>/…`.
+ * Where IPv6 loopback is unavailable that hop raises `connect EACCES ::1`
+ * inside the worker, and every asset comes back 500 while HTML routes keep
+ * working — so Lighthouse would score a page with no CSS and no JS and the
+ * comparison would be meaningless rather than merely wrong.
+ */
+async function assetsAreServed(port) {
+  const assetsDir = path.join(CLIENT_DIR, 'assets');
+  const [sample] = await readdir(assetsDir).catch(() => []);
+  if (!sample) return true; // nothing to check against; let the run proceed
+
+  try {
+    const res = await fetch(`http://${LOOPBACK}:${port}/assets/${sample}`, {
+      signal: AbortSignal.timeout(10_000),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * An IPv4-only front for the preview server, used only when the check above
+ * fails. Static files are served from the build output and everything else is
+ * proxied to the worker — the same order, and the same headers, mini-oxygen's
+ * own handler uses (`assets.fetch` first, fall through to the worker on 404).
+ *
+ * The worker still renders every document, so both modes are measured under
+ * identical conditions and the levers in `app/lib/perf-mode.ts` are unaffected.
+ * What is lost is fidelity to mini-oxygen's asset server specifically, which is
+ * not what Oxygen uses in production anyway — there a CDN serves these files.
+ */
+function startStaticFront(workerPort, frontPort) {
+  const server = createServer((req, res) => {
+    const pathname = (req.url ?? '/').split('?')[0];
+
+    const serveFromDisk = async () => {
+      if (req.method !== 'GET' || pathname.includes('..')) return false;
+      const filePath = path.join(CLIENT_DIR, decodeURIComponent(pathname));
+      const info = await stat(filePath).catch(() => null);
+      if (!info?.isFile()) return false;
+
+      res.writeHead(200, {
+        'Content-Type':
+          MIME_TYPES[path.extname(filePath).toLowerCase()] ??
+          'application/octet-stream',
+        'Content-Length': info.size,
+        'Access-Control-Allow-Origin': '*',
+        'X-Content-Type-Options': 'nosniff',
+      });
+      createReadStream(filePath).pipe(res);
+      return true;
+    };
+
+    serveFromDisk()
+      .catch(() => false)
+      .then((handled) => {
+        if (handled) return;
+        const upstream = httpRequest(
+          {
+            host: LOOPBACK,
+            port: workerPort,
+            path: req.url,
+            method: req.method,
+            headers: {...req.headers, host: `${LOOPBACK}:${workerPort}`},
+          },
+          (proxied) => {
+            res.writeHead(proxied.statusCode ?? 502, proxied.headers);
+            proxied.pipe(res);
+          },
+        );
+        upstream.on('error', () => {
+          if (!res.headersSent) res.writeHead(502, {'Content-Type': 'text/plain'});
+          res.end('upstream unavailable');
+        });
+        req.pipe(upstream);
+      });
+  });
+
+  return new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(frontPort, LOOPBACK, () => resolve(server));
+  });
+}
+
 async function runLighthouse(url, chromePort) {
   const result = await lighthouse(
     url,
@@ -155,11 +270,20 @@ async function runLighthouse(url, chromePort) {
     {
       extends: 'lighthouse:default',
       settings: {
-        // Mobile emulation with the default 4x CPU / Slow 4G throttling.
-        // Desktop numbers flatter every storefront and hide exactly the
-        // main-thread cost this comparison is about.
+        // Mobile emulation with 4x CPU / Slow 4G. Desktop numbers flatter
+        // every storefront and hide exactly the main-thread cost this
+        // comparison is about.
         formFactor: 'mobile',
         onlyCategories: ['performance'],
+
+        // Applied throttling rather than Lighthouse's default simulation.
+        // Simulation replays the trace against a modelled network graph, which
+        // pushes FCP out past work that really ran before it — on this
+        // storefront it reported TBT as 0 ms in both modes while the trace
+        // contained a 722 ms task from the third-party script. Applied
+        // throttling costs wall-clock time and is noisier, but it measures the
+        // thing this repo is claiming to measure.
+        throttlingMethod: 'devtools',
       },
     },
   );
@@ -178,6 +302,19 @@ async function runLighthouse(url, chromePort) {
 
 async function measureMode({mode, port}, urls) {
   const server = await startPreview(mode, port);
+  let front;
+  let origin = `http://${LOOPBACK}:${port}`;
+
+  if (!(await assetsAreServed(port))) {
+    front = await startStaticFront(port, port + 500);
+    origin = `http://${LOOPBACK}:${port + 500}`;
+    log(
+      `preview server cannot reach its own asset server (IPv6 loopback is ` +
+        `unavailable on this host); serving dist/client over IPv4 on ` +
+        `:${port + 500} instead`,
+    );
+  }
+
   const chrome = await chromeLauncher.launch({
     chromeFlags: ['--headless=new', '--no-sandbox', '--disable-gpu'],
   });
@@ -187,7 +324,7 @@ async function measureMode({mode, port}, urls) {
     for (const url of urls) {
       const runs = [];
       for (let i = 0; i < RUNS_PER_URL; i++) {
-        runs.push(await runLighthouse(`http://localhost:${port}${url}`, chrome.port));
+        runs.push(await runLighthouse(`${origin}${url}`, chrome.port));
       }
       perUrl[url] = Object.fromEntries(
         METRICS.map(({key}) => [key, median(runs.map((r) => r[key]))]),
@@ -197,9 +334,11 @@ async function measureMode({mode, port}, urls) {
           `LCP ${Math.round(perUrl[url].lcp)}ms`,
       );
     }
-    return perUrl;
+    return {perUrl, staticFront: Boolean(front)};
   } finally {
     await chrome.kill().catch(() => {});
+    front?.closeAllConnections();
+    front?.close();
     killTree(server);
   }
 }
@@ -226,8 +365,16 @@ function renderReport(urls, results, meta) {
     'Generated by `npm run perf`. Do not hand-edit.',
     '',
     `- Runs per URL: **${meta.runsPerUrl}** (median reported)`,
-    `- Lighthouse profile: mobile, default throttling (4x CPU, Slow 4G)`,
+    `- Lighthouse profile: mobile, applied throttling (4x CPU, Slow 4G)`,
     `- Node: ${meta.node} · platform: ${meta.platform}`,
+    ...(meta.staticFront
+      ? [
+          '- Static files were served from `dist/client` over IPv4 rather than',
+          '  by mini-oxygen\'s asset server, because IPv6 loopback is unavailable',
+          '  on the measuring host. Documents are still rendered by the worker,',
+          '  and both modes ran under this condition.',
+        ]
+      : []),
     '',
     'What differs between the two modes is listed in',
     '[`app/lib/perf-mode.ts`](../../app/lib/perf-mode.ts) and explained in',
@@ -269,14 +416,18 @@ async function main() {
   log(`measuring ${urls.length} URLs, ${RUNS_PER_URL} runs each, 2 modes`);
 
   const results = {};
+  let staticFront = false;
   for (const target of MODES) {
-    results[target.mode] = await measureMode(target, urls);
+    const measured = await measureMode(target, urls);
+    results[target.mode] = measured.perUrl;
+    staticFront ||= measured.staticFront;
   }
 
   const meta = {
     runsPerUrl: RUNS_PER_URL,
     node: process.version,
     platform: process.platform,
+    staticFront,
   };
 
   await mkdir(OUT_DIR, {recursive: true});

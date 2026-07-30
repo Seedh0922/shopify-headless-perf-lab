@@ -34,7 +34,7 @@ app-heavy Shopify themes:
 |---|---|---|---|
 | CDN preconnect | present | removed | Costs a TLS round trip before the LCP image can start |
 | Hero image loading | `eager` + `fetchpriority=high` | `lazy` + `auto` | Lazy-loading the LCP element defeats the preload scanner |
-| Image `sizes` hint | viewport-aware | `100vw` | Mobile downloads a desktop-width image |
+| Image `sizes` hint | viewport-aware | hardcoded `1600px` | Mobile downloads a desktop-width image |
 | Layout reservation | aspect ratio set | absent | The usual source of a bad CLS score |
 | Third-party app script | absent | synchronous in `<head>` | Reviews/popup/upsell bundles, the single biggest real-world cost |
 | Storefront API cache | `CacheLong` / `CacheShort` | `CacheNone` | Warm vs cold TTFB |
@@ -67,6 +67,13 @@ would be worth as little as the screenshot it replaced.
   vendor's behaviour.
 - Lighthouse is noisy. The harness runs each URL several times and reports the
   median; single runs should not be read as precise.
+- One lever does not show up in the numbers. `baseline` emits a hero `<img>`
+  with no width, height, or aspect ratio, and both modes still measure a CLS of
+  0.000 — mock.shop's images are small enough, and a preview server on loopback
+  fast enough, that the hero decodes before first paint and nothing is ever laid
+  out twice. The lever is kept because the CLS budget still has to hold against
+  a real image origin, but this repository does not demonstrate it, and the
+  generated report says so rather than quietly reporting a win.
 
 ## Alternatives rejected
 

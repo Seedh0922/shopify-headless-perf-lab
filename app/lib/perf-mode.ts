@@ -37,8 +37,13 @@ export interface PerfTraits {
   heroFetchPriority: 'high' | 'auto';
 
   /**
-   * Without a `sizes` hint the browser picks the widest candidate in the
-   * srcset, so mobile downloads a desktop-sized image.
+   * `sizes` is what lets the browser pick the right srcset candidate before
+   * layout exists. A viewport-aware value gets a phone a phone-sized image; a
+   * hardcoded desktop width — the common copy-paste — makes a 412px-wide
+   * viewport download a 1600px candidate and throw most of it away.
+   *
+   * Note that `100vw` is *correct* for a full-bleed hero and is not the
+   * regression being modelled here.
    */
   heroSizes: string;
   gridSizes: string;
@@ -77,8 +82,8 @@ const TRAITS: Record<PerfMode, PerfTraits> = {
     preconnectCdn: false,
     heroLoading: 'lazy',
     heroFetchPriority: 'auto',
-    heroSizes: '100vw',
-    gridSizes: '100vw',
+    heroSizes: '1600px',
+    gridSizes: '800px',
     reserveImageAspectRatio: false,
     blockingThirdPartyScript: true,
     cacheStorefrontQueries: false,
@@ -91,7 +96,8 @@ export function perfTraits(mode: PerfMode): PerfTraits {
 
 /**
  * Path of the simulated third-party app bundle. Served by
- * app/routes/perf-sim.blocking-app[.js].tsx so the delay is measurable as real
- * network time rather than faked in the client.
+ * app/routes/perf-sim.blocking-app.tsx so the delay is measurable as real
+ * network time rather than faked in the client. No `.js` suffix — see the note
+ * in that file.
  */
-export const BLOCKING_SCRIPT_PATH = '/perf-sim/blocking-app.js';
+export const BLOCKING_SCRIPT_PATH = '/perf-sim/blocking-app';

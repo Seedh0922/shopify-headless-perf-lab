@@ -84,6 +84,14 @@ export default function Homepage() {
   );
 }
 
+/** Candidate widths, matching what Hydrogen's <Image> would generate. */
+const HERO_WIDTHS = [400, 600, 800, 1000, 1200, 1600, 2000];
+
+function heroSrcSet(url: string) {
+  const separator = url.includes('?') ? '&' : '?';
+  return HERO_WIDTHS.map((w) => `${url}${separator}width=${w} ${w}w`).join(', ');
+}
+
 /**
  * The hero image is the LCP element on this page, so it carries every image
  * lever the two perf modes differ on.
@@ -104,14 +112,32 @@ function FeaturedCollection({
     >
       {image && (
         <div className="featured-collection-image">
-          <Image
-            data={image}
-            sizes={traits.heroSizes}
-            loading={traits.heroLoading}
-            fetchPriority={traits.heroFetchPriority}
-            aspectRatio={traits.reserveImageAspectRatio ? '1/1' : undefined}
-            alt={image.altText || collection.title}
-          />
+          {traits.reserveImageAspectRatio ? (
+            <Image
+              data={image}
+              sizes={traits.heroSizes}
+              loading={traits.heroLoading}
+              fetchPriority={traits.heroFetchPriority}
+              aspectRatio="1/1"
+              alt={image.altText || collection.title}
+            />
+          ) : (
+            /*
+             * The bare <img> an unoptimised theme emits: a srcset, but no
+             * width, height, or aspect ratio anywhere. Hydrogen's <Image>
+             * cannot express this — it always writes intrinsic dimensions,
+             * which is the whole point of using it — so the baseline has to
+             * hand-roll the tag to reproduce the shift.
+             */
+            <img
+              src={image.url}
+              srcSet={heroSrcSet(image.url)}
+              sizes={traits.heroSizes}
+              loading={traits.heroLoading}
+              fetchPriority={traits.heroFetchPriority}
+              alt={image.altText || collection.title}
+            />
+          )}
         </div>
       )}
       <h1>{collection.title}</h1>

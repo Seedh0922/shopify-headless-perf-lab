@@ -422,7 +422,14 @@ button.reset:hover:not(:has(> *)) {
   position: relative;
 }
 
-.featured-collection-image {
+/*
+ * Scoped to the mode on purpose. Reserving the hero's box before the image
+ * arrives is one of the levers in app/lib/perf-mode.ts
+ * (`reserveImageAspectRatio`); if this rule applied unconditionally it would
+ * reserve the space in `baseline` too and the mode would score an identical
+ * CLS, making the lever look inert when it is simply being overridden here.
+ */
+[data-perf-mode='optimized'] .featured-collection-image {
   aspect-ratio: 1 / 1;
   @media (min-width: 45em) {
     aspect-ratio: 16 / 9;
