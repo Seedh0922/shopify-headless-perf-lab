@@ -40,5 +40,10 @@ export default defineConfig({
   },
   server: {
     allowedHosts: ['.tryhydrogen.dev'],
+    // Bind IPv4 explicitly. Vite's default of `localhost` resolves to `::1`
+    // first on Windows, and the dev server then listens on IPv6 loopback only
+    // — unreachable on any host where `::1` is blocked, with no fallback to
+    // 127.0.0.1. See the note in README.md.
+    host: '127.0.0.1',
   },
 });
