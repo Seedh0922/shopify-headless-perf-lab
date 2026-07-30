@@ -3,7 +3,7 @@
  * this repo can be reproduced instead of screenshotted.
  *
  * - `optimized` is how the storefront should ship.
- * - `baseline` reproduces the five patterns that most often wreck Core Web
+ * - `baseline` reproduces the six patterns that most often wreck Core Web
  *   Vitals on an app-heavy Shopify theme. Each one is a real regression that
  *   Lighthouse can see, not a synthetic delay bolted onto the render.
  *

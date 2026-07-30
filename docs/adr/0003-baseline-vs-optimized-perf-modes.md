@@ -26,7 +26,7 @@ environment variable, and provide a script that measures both in one command:
 npm run perf
 ```
 
-`optimized` is how the storefront should ship. `baseline` re-introduces five
+`optimized` is how the storefront should ship. `baseline` re-introduces six
 specific regressions, each one drawn from a pattern that actually shows up on
 app-heavy Shopify themes:
 
