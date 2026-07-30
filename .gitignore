@@ -1,0 +1,20 @@
+node_modules
+/.DS_Store
+/.cache
+/build
+/dist
+/public/build
+/.mf
+.shopify
+.react-router
+
+# Temporary per-mode env files written by scripts/perf-compare.mjs
+/.perf-tmp
+
+# Lighthouse CI working directory
+/.lighthouseci
+
+# NOTE: .env is intentionally NOT ignored. It holds no secrets — the storefront
+# runs against the public mock.shop API — and committing it is what makes
+# `git clone && npm install && npm run dev` work with no setup.
+# See docs/adr/0004-commit-the-env-file.md

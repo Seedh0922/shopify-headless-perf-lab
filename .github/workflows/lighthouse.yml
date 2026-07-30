@@ -1,0 +1,45 @@
+name: Lighthouse
+
+# The performance budgets in lighthouserc.json are enforced here. A pull
+# request that regresses LCP, CLS, TBT, or the accessibility/SEO categories
+# fails this job rather than shipping and being noticed later.
+#
+# No secrets are needed: the storefront runs against the public mock.shop API.
+# See docs/adr/0001-run-against-mock-shop.md
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: lighthouse-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lighthouse:
+    name: budgets (mobile)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Run Lighthouse CI
+        run: npm run lhci
+        env:
+          # `preview` builds first, so no separate build step is needed.
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+
+      - name: Upload Lighthouse reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-results
+          path: .lighthouseci
+          if-no-files-found: ignore
