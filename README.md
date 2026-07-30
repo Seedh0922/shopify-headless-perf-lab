@@ -5,9 +5,26 @@ the Oxygen worker runtime — where every performance claim is a command you can
 re-run, not a screenshot.
 
 The same storefront ships in two modes. `optimized` is how it should go out.
-`baseline` re-introduces five specific regressions that real app-heavy Shopify
+`baseline` re-introduces six specific regressions that real app-heavy Shopify
 themes have. Both are measured by one script, so the difference between them is
 an observation rather than an assertion.
+
+## What the difference measures
+
+Homepage. Mobile, 4× CPU throttling on Slow 4G, median of three runs.
+
+| Metric | `baseline` | `optimized` | Change |
+|---|---:|---:|---:|
+| Performance score | 76 | **95** | +25% |
+| Largest Contentful Paint | 4968 ms | **2650 ms** | **−47%** |
+| Total Blocking Time | 143 ms | **4 ms** | **−97%** |
+| Speed Index | 5010 ms | **3088 ms** | −38% |
+| Transfer size | 714 KB | **473 KB** | −34% |
+
+None of that was typed by hand. `npm run perf` generated it, and the same
+command regenerates it on your machine in about twelve minutes.
+[`docs/perf/latest.md`](docs/perf/latest.md) carries every route measured —
+including the one metric that does not move, and why it doesn't.
 
 ```bash
 git clone <this-repo>
