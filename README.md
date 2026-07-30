@@ -189,7 +189,14 @@ looked for them.
   ```
 
   `ECONNREFUSED` is healthy. `EACCES` means IPv6 loopback is blocked
-  machine-wide, usually by a firewall or endpoint-security policy. `npm run
-  perf` detects this and serves `dist/client` over IPv4 itself, noting it in the
-  generated report; `npm run dev` and `npm run preview` have no such fallback,
-  so browse the storefront under WSL2 on an affected machine.
+  machine-wide, usually by a firewall, VPN client, or endpoint-security policy.
+  On such a host:
+
+  - `npm run dev` works. Vite would otherwise bind `::1` only and be
+    unreachable at any address, so `server.host` is pinned to `127.0.0.1` in
+    [`vite.config.ts`](vite.config.ts).
+  - `npm run perf` works. It detects the broken hop, serves `dist/client` over
+    IPv4 itself, and records that it did so in the generated report.
+  - `npm run preview` does **not**. The document routes answer on
+    `http://127.0.0.1:3000`, but static assets 500 and there is no fallback —
+    use `npm run dev`, or WSL2.
