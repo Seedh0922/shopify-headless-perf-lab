@@ -33,8 +33,8 @@ variable:
 
 | Mode | URL |
 |---|---|
-| `optimized` | _pending first deploy_ |
-| `baseline` | _pending first deploy_ |
+| `optimized` | <https://shopify-perf-lab-optimized.clintonbrown.workers.dev> |
+| `baseline` | <https://shopify-perf-lab-baseline.clintonbrown.workers.dev> |
 
 Paste either into [PageSpeed Insights](https://pagespeed.web.dev/) and let
 Google do the measuring. The numbers will not match the table above — that one
