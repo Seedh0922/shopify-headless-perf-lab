@@ -423,13 +423,17 @@ button.reset:hover:not(:has(> *)) {
 }
 
 /*
- * Scoped to the mode on purpose. Reserving the hero's box before the image
- * arrives is one of the levers in app/lib/perf-mode.ts
- * (`reserveImageAspectRatio`); if this rule applied unconditionally it would
- * reserve the space in `baseline` too and the mode would score an identical
- * CLS, making the lever look inert when it is simply being overridden here.
+ * Keyed on the trait, not on the mode name. Reserving the hero's box before the
+ * image arrives is one of the levers in app/lib/perf-mode.ts
+ * (`reserveImageAspectRatio`); applied unconditionally it would reserve the
+ * space in `baseline` too and both modes would score an identical CLS.
+ *
+ * This used to read `[data-perf-mode='optimized']`, which looked equivalent and
+ * was not: turning the trait off while staying in `optimized` left this rule
+ * still reserving the box, so the lever silently did nothing. The stylesheet
+ * has to follow the trait it belongs to, or the trait is not really the switch.
  */
-[data-perf-mode='optimized'] .featured-collection-image {
+[data-reserve-aspect='on'] .featured-collection-image {
   aspect-ratio: 1 / 1;
   @media (min-width: 45em) {
     aspect-ratio: 16 / 9;
