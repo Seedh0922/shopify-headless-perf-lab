@@ -157,7 +157,16 @@ export function Layout({children}: {children?: React.ReactNode}) {
   const traits = perfTraits(mode);
 
   return (
-    <html lang="en" data-perf-mode={mode}>
+    <html
+      lang="en"
+      data-perf-mode={mode}
+      // Driven by the trait, not by the mode name. Scoping the stylesheet to
+      // `[data-perf-mode='optimized']` looked equivalent and was not: turning
+      // `reserveImageAspectRatio` off while staying in `optimized` left the CSS
+      // still reserving the box, so the lever only worked when the mode
+      // happened to agree with it.
+      data-reserve-aspect={traits.reserveImageAspectRatio ? 'on' : 'off'}
+    >
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width,initial-scale=1" />
