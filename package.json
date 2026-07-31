@@ -15,7 +15,9 @@
     "typecheck": "react-router typegen && tsc --noEmit",
     "codegen": "shopify hydrogen codegen && react-router typegen",
     "perf": "node scripts/perf-compare.mjs",
-    "lhci": "lhci autorun"
+    "lhci": "lhci autorun",
+    "deploy:optimized": "npm run build && wrangler deploy --env optimized",
+    "deploy:baseline": "npm run build && wrangler deploy --env baseline"
   },
   "prettier": "@shopify/prettier-config",
   "dependencies": {
@@ -61,6 +63,7 @@
     "lighthouse": "^12.8.2",
     "prettier": "^3.4.2",
     "typescript": "^5.9.2",
-    "vite": "^8.0.1"
+    "vite": "^8.0.1",
+    "wrangler": "^4.116.0"
   }
 }
