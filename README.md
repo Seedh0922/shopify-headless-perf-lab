@@ -26,6 +26,22 @@ command regenerates it on your machine in about twelve minutes.
 [`docs/perf/latest.md`](docs/perf/latest.md) carries every route measured —
 including the one metric that does not move, and why it doesn't.
 
+## Or don't take my measurement at all
+
+Both modes are deployed, same commit, differing only by one environment
+variable:
+
+| Mode | URL |
+|---|---|
+| `optimized` | _pending first deploy_ |
+| `baseline` | _pending first deploy_ |
+
+Paste either into [PageSpeed Insights](https://pagespeed.web.dev/) and let
+Google do the measuring. The numbers will not match the table above — that one
+is loopback with applied throttling, this one is a real network from wherever
+you are — but the gap between the two URLs is the same gap, measured by someone
+who is not me. ([ADR 0005](docs/adr/0005-publish-both-modes-on-cloudflare.md))
+
 ```bash
 git clone <this-repo>
 cd shopify-headless-perf-lab
@@ -136,6 +152,7 @@ Short, and each one names what was given up.
 - [0002 — Keep checkout on Shopify](docs/adr/0002-keep-checkout-on-shopify.md)
 - [0003 — Ship two perf modes so the numbers can be reproduced](docs/adr/0003-baseline-vs-optimized-perf-modes.md)
 - [0004 — Commit `.env`](docs/adr/0004-commit-the-env-file.md)
+- [0005 — Publish both modes on Cloudflare](docs/adr/0005-publish-both-modes-on-cloudflare.md)
 
 ---
 

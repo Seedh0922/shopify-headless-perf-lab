@@ -30,6 +30,9 @@ export default [
       '**/*.graphql.ts',
       '**/*.generated.d.ts',
       '**/.react-router/',
+      // wrangler dev writes bundled worker output here; linting a bundle
+      // produces hundreds of findings about code nobody wrote.
+      '**/.wrangler/',
       '**/packages/hydrogen/dist/',
     ],
   },

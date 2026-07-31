@@ -1,0 +1,71 @@
+/**
+ * Cloudflare Workers deployment.
+ *
+ * Oxygen is the storefront's home and `npm run build` still targets it. This
+ * config exists for one reason: to put both perf modes on public URLs so the
+ * comparison in docs/perf/latest.md can be re-measured by a stranger with
+ * PageSpeed Insights, on hardware that is not mine.
+ *
+ * It works because Oxygen and Workers are the same runtime underneath —
+ * workerd. The built worker is already a module worker exporting `fetch`, and
+ * `caches.open()` and `ctx.waitUntil()` mean the same thing on both.
+ *
+ * Static assets are served by the platform ahead of the worker, which also
+ * sidesteps the loopback asset server the local preview uses (see the IPv6 note
+ * in the README).
+ *
+ *   npx wrangler deploy --env optimized
+ *   npx wrangler deploy --env baseline
+ *
+ * See docs/adr/0005-publish-both-modes-on-cloudflare.md
+ */
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "shopify-perf-lab",
+  "main": "dist/server/index.js",
+  "compatibility_date": "2025-05-05",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+
+  "assets": {
+    "directory": "./dist/client",
+    // Anything that is not a built asset is the worker's problem: the
+    // storefront renders every document, including its 404.
+    "not_found_handling": "none"
+  },
+
+  "vars": {
+    "PUBLIC_STORE_DOMAIN": "mock.shop",
+    // Not a secret. It signs the local cart session against a public mock API
+    // and is committed for the same reason .env is — see ADR 0004.
+    "SESSION_SECRET": "shopify-headless-perf-lab-public-demo"
+  },
+
+  "env": {
+    "optimized": {
+      "name": "shopify-perf-lab-optimized",
+      "vars": {
+        "PUBLIC_STORE_DOMAIN": "mock.shop",
+        "SESSION_SECRET": "shopify-headless-perf-lab-public-demo",
+        "PERF_MODE": "optimized"
+      },
+      "assets": {
+        "directory": "./dist/client",
+        "not_found_handling": "none"
+      }
+    },
+
+    "baseline": {
+      "name": "shopify-perf-lab-baseline",
+      "vars": {
+        "PUBLIC_STORE_DOMAIN": "mock.shop",
+        "SESSION_SECRET": "shopify-headless-perf-lab-public-demo",
+        "PERF_MODE": "baseline"
+      },
+      "assets": {
+        "directory": "./dist/client",
+        "not_found_handling": "none"
+      }
+    }
+  }
+}
