@@ -1,4 +1,5 @@
 import {useLoaderData} from 'react-router';
+import {pageMeta} from '~/lib/seo';
 import type {Route} from './+types/search';
 import {getPaginationVariables, Analytics} from '@shopify/hydrogen';
 import {SearchForm} from '~/components/SearchForm';
@@ -14,7 +15,11 @@ import type {
 } from 'storefrontapi.generated';
 
 export const meta: Route.MetaFunction = () => {
-  return [{title: `Hydrogen | Search`}];
+  return pageMeta({
+    title: `Hydrogen | Search`,
+    fallback:
+      "Search the catalog by keyword, with predictive results as you type.",
+  });
 };
 
 export async function loader({request, context}: Route.LoaderArgs) {

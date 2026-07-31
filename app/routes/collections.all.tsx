@@ -1,4 +1,5 @@
 import type {Route} from './+types/collections.all';
+import {pageMeta} from '~/lib/seo';
 import {useLoaderData} from 'react-router';
 import {getPaginationVariables, Image, Money} from '@shopify/hydrogen';
 import {PaginatedResourceSection} from '~/components/PaginatedResourceSection';
@@ -6,7 +7,11 @@ import {ProductItem} from '~/components/ProductItem';
 import type {CollectionItemFragment} from 'storefrontapi.generated';
 
 export const meta: Route.MetaFunction = () => {
-  return [{title: `Hydrogen | Products`}];
+  return pageMeta({
+    title: `Hydrogen | Products`,
+    fallback:
+      "Browse every product in the catalog, with cursor-based pagination and responsive imagery.",
+  });
 };
 
 export async function loader(args: Route.LoaderArgs) {

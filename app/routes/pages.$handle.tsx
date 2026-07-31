@@ -1,9 +1,13 @@
 import {useLoaderData} from 'react-router';
+import {pageMeta} from '~/lib/seo';
 import type {Route} from './+types/pages.$handle';
 import {redirectIfHandleIsLocalized} from '~/lib/redirect';
 
 export const meta: Route.MetaFunction = ({data}) => {
-  return [{title: `Hydrogen | ${data?.page.title ?? ''}`}];
+  return pageMeta({
+    title: `Hydrogen | ${data?.page.title ?? ''}`,
+    fallback: data?.page.title ?? undefined,
+  });
 };
 
 export async function loader(args: Route.LoaderArgs) {

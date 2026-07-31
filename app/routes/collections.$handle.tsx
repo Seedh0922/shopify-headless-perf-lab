@@ -1,4 +1,5 @@
 import {redirect, useLoaderData} from 'react-router';
+import {pageMeta} from '~/lib/seo';
 import type {Route} from './+types/collections.$handle';
 import {getPaginationVariables, Analytics} from '@shopify/hydrogen';
 import {PaginatedResourceSection} from '~/components/PaginatedResourceSection';
@@ -7,7 +8,11 @@ import {ProductItem} from '~/components/ProductItem';
 import type {ProductItemFragment} from 'storefrontapi.generated';
 
 export const meta: Route.MetaFunction = ({data}) => {
-  return [{title: `Hydrogen | ${data?.collection.title ?? ''} Collection`}];
+  return pageMeta({
+    title: `Hydrogen | ${data?.collection.title ?? ''} Collection`,
+    description: data?.collection.description,
+    fallback: `Shop the ${data?.collection.title ?? ''} collection.`,
+  });
 };
 
 export async function loader(args: Route.LoaderArgs) {

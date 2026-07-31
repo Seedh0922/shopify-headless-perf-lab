@@ -12,10 +12,15 @@ import {ProductPrice} from '~/components/ProductPrice';
 import {ProductImage} from '~/components/ProductImage';
 import {ProductForm} from '~/components/ProductForm';
 import {redirectIfHandleIsLocalized} from '~/lib/redirect';
+import {pageMeta} from '~/lib/seo';
 
 export const meta: Route.MetaFunction = ({data}) => {
   return [
-    {title: `Hydrogen | ${data?.product.title ?? ''}`},
+    ...pageMeta({
+      title: `Hydrogen | ${data?.product.title ?? ''}`,
+      description: data?.product.description,
+      fallback: data?.product.title ?? undefined,
+    }),
     {
       rel: 'canonical',
       href: `/products/${data?.product.handle}`,

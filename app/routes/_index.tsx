@@ -1,4 +1,5 @@
 import {Await, useLoaderData, Link} from 'react-router';
+import {pageMeta} from '~/lib/seo';
 import type {Route} from './+types/_index';
 import {Suspense} from 'react';
 import {Image} from '@shopify/hydrogen';
@@ -11,7 +12,11 @@ import {MockShopNotice} from '~/components/MockShopNotice';
 import {perfTraits, resolvePerfMode, type PerfTraits} from '~/lib/perf-mode';
 
 export const meta: Route.MetaFunction = () => {
-  return [{title: 'Hydrogen | Home'}];
+  return pageMeta({
+    title: 'Hydrogen | Home',
+    fallback:
+      'Shop the featured collection and recommended products, served from the edge by a headless Hydrogen storefront.',
+  });
 };
 
 export async function loader(args: Route.LoaderArgs) {
