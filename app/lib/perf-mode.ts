@@ -70,11 +70,11 @@ export interface PerfTraits {
 const TRAITS: Record<PerfMode, PerfTraits> = {
   optimized: {
     preconnectCdn: true,
-    heroLoading: 'eager',
-    heroFetchPriority: 'high',
+    heroLoading: 'lazy',
+    heroFetchPriority: 'auto',
     heroSizes: '(min-width: 45em) 50vw, 100vw',
     gridSizes: '(min-width: 45em) 20vw, 50vw',
-    reserveImageAspectRatio: true,
+    reserveImageAspectRatio: false,
     blockingThirdPartyScript: false,
     cacheStorefrontQueries: true,
   },
